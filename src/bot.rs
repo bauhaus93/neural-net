@@ -27,9 +27,10 @@ pub enum Direction {
 
 impl Drawable for Bot {
     fn draw(&self, allegro_wrapper: &AllegroWrapper) {
-        let x = self.pos.0 + self.view_radius * f32::cos(self.rot);
-        let y = self.pos.1 + self.view_radius * f32::sin(self.rot);
+        //let x = self.pos.0 + self.view_radius * f32::cos(self.rot);
+        //let y = self.pos.1 + self.view_radius * f32::sin(self.rot);
         //allegro_wrapper.draw_line(self.pos.0, self.pos.1, x, y, allegro_wrapper.get_white(), 1.0);
+
         allegro_wrapper.draw_pieslice(self.pos.0, self.pos.1, self.view_radius, self.rot - self.fov / 2.0, self.fov, allegro_wrapper.get_white(), 1.0);
 
         allegro_wrapper.draw_filled_circle(self.pos.0, self.pos.1, self.size, self.color);
@@ -148,25 +149,40 @@ impl Bot {
     }
 
     pub fn sees(&self, point: (f32, f32)) -> bool {
-        let start = (self.pos.0 + self.view_radius * f32::cos(self.rot - self.fov / 2.0),
-                     self.pos.1 + self.view_radius * f32::sin(self.rot - self.fov / 2.0));
 
-        let end = (  self.pos.0 + self.view_radius * f32::cos(self.rot + self.fov / 2.0),
-                     self.pos.1 + self.view_radius * f32::sin(self.rot + self.fov / 2.0));
+        if get_distance(self.pos, point) > self.view_radius {
+            return false;
+        }
+
+        let view = (self.pos.0 + self.view_radius * f32::cos(self.rot) - self.pos.0, self.pos.1 + self.view_radius * f32::sin(self.rot) - self.pos.1);
         let target = (point.0 - self.pos.0, point.1 - self.pos.1);
 
-        if !are_clockwise(start, target) &&
-            are_clockwise(end, target) &&
-            get_distance(point, self.pos) <= self.view_radius {
-            return true
+        let view_len = get_vector_length(view);
+        let target_len = get_vector_length(target);
+
+        let view_norm = (view.0 / view_len, view.1 / view_len);
+        let target_norm = (target.0 / target_len, target.1 / target_len);
+
+        let mut angle = f32::atan2(target_norm.1, target_norm.0) - f32::atan2(view_norm.1, view_norm.0);
+        if angle > f32::consts::PI {
+            angle -= PI_DOUBLE;
+        }
+        else if angle < -f32::consts::PI {
+            angle += PI_DOUBLE;
+        }
+
+        let fov_half = self.fov / 2.0;
+
+        if angle >= -fov_half && angle <= fov_half {
+            return true;
         }
 
         false
     }
 }
 
-fn are_clockwise(v1: (f32, f32), v2: (f32, f32)) -> bool {
-    -v1.0 * v2.1 + v1.1 * v2.0 > 0.0
+fn get_vector_length(v: (f32, f32)) -> f32 {
+    f32::sqrt(v.0 * v.0 + v.1 * v.1)
 }
 
 fn get_distance(a: (f32, f32), b: (f32, f32)) -> f32 {
