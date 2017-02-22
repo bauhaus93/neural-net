@@ -8,6 +8,7 @@ mod trainingset;
 mod simulator;
 mod allegrowrapper;
 mod bot;
+mod utility;
 
 use neuralnet::NeuralNet;
 use trainingset::Trainingset;

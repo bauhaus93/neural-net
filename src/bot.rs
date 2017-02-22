@@ -1,4 +1,6 @@
 use std::f32;
+use std::f32::consts::PI;
+use std::option::Option;
 
 use rand::distributions::{ Range, IndependentSample };
 use rand;
@@ -6,8 +8,7 @@ use allegro;
 
 use neuralnet::NeuralNet;
 use allegrowrapper::{ AllegroWrapper, Drawable };
-
-const PI_DOUBLE: f32 = f32::consts::PI * 2.0;
+use utility::{ get_vector_length, get_distance, get_angle, PI_DOUBLE, Boundary };
 
 pub struct Bot {
     nn: NeuralNet,
@@ -51,7 +52,7 @@ impl Bot {
             size: size,
             speed: speed,
             view_radius: 8.0 * size,
-            fov: f32::consts::PI / 2.0,
+            fov: PI / 2.0,
             color: allegro::Color::from_rgb(0xFF, 0xFF, 0xFF)
         };
 
@@ -148,45 +149,55 @@ impl Bot {
         self.fov
     }
 
-    pub fn sees(&self, point: (f32, f32)) -> bool {
+    fn get_view_vector(&self) -> (f32, f32) {
+        (self.pos.0 + self.view_radius * f32::cos(self.rot) - self.pos.0,
+         self.pos.1 + self.view_radius * f32::sin(self.rot) - self.pos.1)
+    }
 
-        if get_distance(self.pos, point) > self.view_radius {
-            return false;
+    pub fn sees_point(&self, point: (f32, f32)) -> Option<(f32, f32)> {
+
+        let distance = get_distance(self.pos, point);
+
+        if distance > self.view_radius {
+            return None;
         }
 
-        let view = (self.pos.0 + self.view_radius * f32::cos(self.rot) - self.pos.0, self.pos.1 + self.view_radius * f32::sin(self.rot) - self.pos.1);
+        let view = self.get_view_vector();
         let target = (point.0 - self.pos.0, point.1 - self.pos.1);
 
-        let view_len = get_vector_length(view);
-        let target_len = get_vector_length(target);
-
-        let view_norm = (view.0 / view_len, view.1 / view_len);
-        let target_norm = (target.0 / target_len, target.1 / target_len);
-
-        let mut angle = f32::atan2(target_norm.1, target_norm.0) - f32::atan2(view_norm.1, view_norm.0);
-        if angle > f32::consts::PI {
-            angle -= PI_DOUBLE;
-        }
-        else if angle < -f32::consts::PI {
-            angle += PI_DOUBLE;
-        }
+        let angle = get_angle(view, target);
 
         let fov_half = self.fov / 2.0;
 
         if angle >= -fov_half && angle <= fov_half {
-            return true;
+            return Some((distance, angle));
         }
 
-        false
+        None
     }
-}
 
-fn get_vector_length(v: (f32, f32)) -> f32 {
-    f32::sqrt(v.0 * v.0 + v.1 * v.1)
-}
+    pub fn sees_boundary(&self, value: f32, boundary: Boundary) -> Option<(f32, f32)> {
+        let point = match boundary {
+            Boundary::VERTICAL => (value, self.pos.1),
+            Boundary::HORIZONTAL => (self.pos.0, value)
+        };
 
-fn get_distance(a: (f32, f32), b: (f32, f32)) -> f32 {
-    let dist_x = a.0 - b.0;
-    let dist_y = a.1 - b.1;
-    f32::sqrt(dist_x * dist_x + dist_y * dist_y)
+        let distance = get_distance(self.pos, point);
+
+        if distance > self.view_radius {
+            return None;
+        }
+
+        let view = self.get_view_vector();
+        let boundary_vec = (point.0 - self.pos.0, point.1 - self.pos.1);
+
+        let angle = get_angle(view, boundary_vec);
+
+        //println!("angle: {}, fov: {}, boundary: {}", angle.abs().to_degrees(), self.fov, value);
+        if angle.abs() < self.fov {
+            return Some((distance, angle));
+        }
+
+        None
+    }
 }

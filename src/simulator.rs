@@ -2,15 +2,16 @@ use std::result::Result;
 use std::cell::RefCell;
 use std::string::String;
 use std::f32;
+use std::f32::consts::PI;
 
 use allegro;
 use allegro_primitives;
 
 use allegrowrapper::{ AllegroWrapper, Drawable };
 use bot::Bot;
+use utility::{ get_distance, Boundary };
 
-const PI_DOUBLE: f32 = f32::consts::PI * 2.0;
-const PI_HALF: f32 = f32::consts::PI / 2.0;
+
 
 pub struct Simulator {
     allegro_wrapper: AllegroWrapper,
@@ -102,10 +103,14 @@ impl Simulator {
             let mut feedback = vec![0f64; 4];
             if env[0] > 0.0 {
                 if env[1] > 0.0 {
-                    feedback[1] = 1.0;
+                    if (env[1] as f32) < PI {
+                        feedback[1] = 1.0;
+                    }
                 }
-                else {
-                    feedback[0] = 1.0;
+                else if env[1] < 0.0 {
+                    if (env[1] as f32) > -PI {
+                        feedback[0] = 1.0;
+                    }
                 }
             }
 
@@ -119,39 +124,31 @@ impl Simulator {
     }
 
     fn get_nearest_boundary(&self, bot: &Bot) -> (f32, f32) {
-        let rot = bot.get_rotation();
-        let pos = bot.get_pos();
-        let view_radius = bot.get_view_radius();
-        let fov = bot.get_fov();
+        //let pos = self.bot.get_pos();
 
-        //left boundary
-        let mut min_dist = get_distance(pos, (0.0, pos.1));
-        let mut angle = f32::consts::PI - rot;
+        //TOP, BOTTOM, LEFT, RIGHT boundaries
+        let boundaries = [ bot.sees_boundary(self.boundary_low.1, Boundary::HORIZONTAL),
+                           bot.sees_boundary(self.boundary_hi.1, Boundary::HORIZONTAL),
+                           bot.sees_boundary(self.boundary_low.0, Boundary::VERTICAL),
+                           bot.sees_boundary(self.boundary_hi.0, Boundary::VERTICAL) ];
 
-        //top boundary
-        let dist = get_distance(pos, (pos.0, 0.0));
-        if dist < min_dist {
-            min_dist = dist;
-            angle = 3.0 * PI_HALF - rot;
+        let mut nearest = (f32::MAX, 0.0);
+
+        for e in boundaries.iter() {
+            match *e {
+                Some((distance, angle)) => {
+                    if distance < nearest.0 {
+                        nearest = (distance, angle);
+                    }
+                },
+                None => {}
+            }
         }
 
-        //right boundary
-        let dist = get_distance(pos, (self.boundary_hi.0, pos.1));
-        if dist < min_dist {
-            min_dist = dist;
-            angle = 0.0 - rot;
+        if nearest.0 != f32::MAX {
+            return nearest;
         }
 
-        //bottom boundary
-        let dist = get_distance(pos, (pos.0, self.boundary_hi.1));
-        if dist < min_dist {
-            min_dist = dist;
-            angle = PI_HALF - rot;
-        }
-
-        if min_dist < view_radius && angle.abs() < PI_HALF {
-            return (min_dist, angle);
-        }
         (0.0, 0.0)
     }
 
@@ -170,7 +167,7 @@ impl Simulator {
                     continue;
                 }
 
-                if bot.sees(other_bot.get_pos()) {
+                if bot.sees_point(other_bot.get_pos()) != None {
                     let (other_x, other_y) = other_bot.get_pos();
                     self.allegro_wrapper.draw_line(pos_x, pos_y, other_x, other_y, self.allegro_wrapper.get_white(), 2.0);
                 }
@@ -179,11 +176,5 @@ impl Simulator {
 
         self.allegro_wrapper.flip_display();
     }
-    
-}
 
-fn get_distance(a: (f32, f32), b: (f32, f32)) -> f32 {
-    let dist_x = a.0 - b.0;
-    let dist_y = a.1 - b.1;
-    f32::sqrt(dist_x * dist_x + dist_y * dist_y)
 }
