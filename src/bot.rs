@@ -8,7 +8,7 @@ use allegro;
 
 use neuralnet::NeuralNet;
 use allegrowrapper::{ AllegroWrapper, Drawable };
-use utility::{ get_vector_length, get_distance, get_angle, PI_DOUBLE, Boundary };
+use utility::{ get_distance, Boundary, Vector2D };
 
 pub struct Bot {
     nn: NeuralNet,
@@ -52,7 +52,7 @@ impl Bot {
             size: size,
             speed: speed,
             view_radius: 8.0 * size,
-            fov: PI / 2.0,
+            fov: PI / 4.0,
             color: allegro::Color::from_rgb(0xFF, 0xFF, 0xFF)
         };
 
@@ -154,6 +154,11 @@ impl Bot {
          self.pos.1 + self.view_radius * f32::sin(self.rot) - self.pos.1)
     }
 
+    fn get_rotated_view_vector(&self, angle_offset: f32) -> (f32, f32) {
+        (self.pos.0 + self.view_radius * f32::cos(self.rot + angle_offset) - self.pos.0,
+         self.pos.1 + self.view_radius * f32::sin(self.rot + angle_offset) - self.pos.1)
+    }
+
     pub fn sees_point(&self, point: (f32, f32)) -> Option<(f32, f32)> {
 
         let distance = get_distance(self.pos, point);
@@ -165,7 +170,7 @@ impl Bot {
         let view = self.get_view_vector();
         let target = (point.0 - self.pos.0, point.1 - self.pos.1);
 
-        let angle = get_angle(view, target);
+        let angle = view.get_angle_diff(&target);
 
         let fov_half = self.fov / 2.0;
 
@@ -188,7 +193,65 @@ impl Bot {
             return None;
         }
 
-        let view = self.get_view_vector();
+        let ray_min = self.get_rotated_view_vector(-self.fov / 2.0).add(&self.pos);
+        let ray_max = self.get_rotated_view_vector(self.fov / 2.0).add(&self.pos);
+        //println!("rays: ({}, {}), ({}, {})", ray_min.0, ray_min.1, ray_max.0, ray_max.1);
+        let ret = match boundary {
+            Boundary::VERTICAL => {
+                if self.pos.0 > value {
+                    if ray_min.0 <= value || ray_max.0 <= value {
+                        println!("1Sees boundary");
+                        true
+                    }
+                    else {
+                        false
+                    }
+                }
+                else {
+                    if ray_min.0 >= value || ray_max.0 >= value {
+                        println!("2Sees boundary");
+                        true
+                    }
+                    else {
+                        false
+                    }
+                }
+            },
+            Boundary::HORIZONTAL => {
+                if self.pos.1 > value {
+                    if ray_min.1 <= value || ray_max.1 <= value {
+                        println!("3Sees boundary");
+                        true
+                    }
+                    else {
+                        false
+                    }
+                }
+                else {
+                    if ray_min.1 >= value || ray_max.1 >= value {
+                        println!("4Sees boundary");
+                        true
+                    }
+                    else {
+                        false
+                    }
+                }
+            }
+        };
+
+        if ret {
+            let view = self.get_view_vector();
+            let boundary_vec = (point.0 - self.pos.0, point.1 - self.pos.1);
+
+            let angle = view.get_angle_diff(&boundary_vec);
+            println!("angle: {}, fov: {}, boundary: {}", angle.abs().to_degrees(), self.fov, value);
+
+            return Some((distance, angle));
+        }
+
+
+
+        /*let view = self.get_view_vector();
         let boundary_vec = (point.0 - self.pos.0, point.1 - self.pos.1);
 
         let angle = get_angle(view, boundary_vec);
@@ -196,7 +259,7 @@ impl Bot {
         //println!("angle: {}, fov: {}, boundary: {}", angle.abs().to_degrees(), self.fov, value);
         if angle.abs() < self.fov {
             return Some((distance, angle));
-        }
+        }*/
 
         None
     }
