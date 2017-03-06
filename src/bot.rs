@@ -8,7 +8,8 @@ use allegro;
 
 use neuralnet::NeuralNet;
 use allegrowrapper::{ AllegroWrapper, Drawable };
-use utility::{ get_distance, Boundary, Vector2D };
+use utility::{ get_distance, line_intersects_line, Vector2D };
+
 
 pub struct Bot {
     nn: NeuralNet,
@@ -32,7 +33,12 @@ impl Drawable for Bot {
         //let y = self.pos.1 + self.view_radius * f32::sin(self.rot);
         //allegro_wrapper.draw_line(self.pos.0, self.pos.1, x, y, allegro_wrapper.get_white(), 1.0);
 
-        allegro_wrapper.draw_pieslice(self.pos.0, self.pos.1, self.view_radius, self.rot - self.fov / 2.0, self.fov, allegro_wrapper.get_white(), 1.0);
+        allegro_wrapper.draw_pieslice(self.pos.0, self.pos.1,
+                                      self.view_radius,
+                                      self.rot - self.fov / 2.0,
+                                      self.fov,
+                                      allegro_wrapper.get_white(),
+                                      1.0);
 
         allegro_wrapper.draw_filled_circle(self.pos.0, self.pos.1, self.size, self.color);
     }
@@ -52,7 +58,7 @@ impl Bot {
             size: size,
             speed: speed,
             view_radius: 8.0 * size,
-            fov: PI / 4.0,
+            fov: PI / 2.0,
             color: allegro::Color::from_rgb(0xFF, 0xFF, 0xFF)
         };
 
@@ -150,117 +156,99 @@ impl Bot {
     }
 
     fn get_view_vector(&self) -> (f32, f32) {
-        (self.pos.0 + self.view_radius * f32::cos(self.rot) - self.pos.0,
-         self.pos.1 + self.view_radius * f32::sin(self.rot) - self.pos.1)
+        (self.view_radius * self.rot.cos(),
+         self.view_radius * self.rot.sin())
     }
 
     fn get_rotated_view_vector(&self, angle_offset: f32) -> (f32, f32) {
-        (self.pos.0 + self.view_radius * f32::cos(self.rot + angle_offset) - self.pos.0,
-         self.pos.1 + self.view_radius * f32::sin(self.rot + angle_offset) - self.pos.1)
+        (self.view_radius * (self.rot + angle_offset).cos(),
+         self.view_radius * (self.rot + angle_offset).sin())
     }
 
     pub fn sees_point(&self, point: (f32, f32)) -> Option<(f32, f32)> {
 
         let distance = get_distance(self.pos, point);
 
-        if distance > self.view_radius {
-            return None;
-        }
-
-        let view = self.get_view_vector();
-        let target = (point.0 - self.pos.0, point.1 - self.pos.1);
-
-        let angle = view.get_angle_diff(&target);
-
-        let fov_half = self.fov / 2.0;
-
-        if angle >= -fov_half && angle <= fov_half {
-            return Some((distance, angle));
-        }
-
-        None
-    }
-
-    pub fn sees_boundary(&self, value: f32, boundary: Boundary) -> Option<(f32, f32)> {
-        let point = match boundary {
-            Boundary::VERTICAL => (value, self.pos.1),
-            Boundary::HORIZONTAL => (self.pos.0, value)
-        };
-
-        let distance = get_distance(self.pos, point);
-
-        if distance > self.view_radius {
-            return None;
-        }
-
-        let ray_min = self.get_rotated_view_vector(-self.fov / 2.0).add(&self.pos);
-        let ray_max = self.get_rotated_view_vector(self.fov / 2.0).add(&self.pos);
-        //println!("rays: ({}, {}), ({}, {})", ray_min.0, ray_min.1, ray_max.0, ray_max.1);
-        let ret = match boundary {
-            Boundary::VERTICAL => {
-                if self.pos.0 > value {
-                    if ray_min.0 <= value || ray_max.0 <= value {
-                        println!("1Sees boundary");
-                        true
-                    }
-                    else {
-                        false
-                    }
-                }
-                else {
-                    if ray_min.0 >= value || ray_max.0 >= value {
-                        println!("2Sees boundary");
-                        true
-                    }
-                    else {
-                        false
-                    }
-                }
-            },
-            Boundary::HORIZONTAL => {
-                if self.pos.1 > value {
-                    if ray_min.1 <= value || ray_max.1 <= value {
-                        println!("3Sees boundary");
-                        true
-                    }
-                    else {
-                        false
-                    }
-                }
-                else {
-                    if ray_min.1 >= value || ray_max.1 >= value {
-                        println!("4Sees boundary");
-                        true
-                    }
-                    else {
-                        false
-                    }
-                }
-            }
-        };
-
-        if ret {
+        if distance < self.view_radius {
             let view = self.get_view_vector();
-            let boundary_vec = (point.0 - self.pos.0, point.1 - self.pos.1);
+            let target = (point.0 - self.pos.0, point.1 - self.pos.1);
 
-            let angle = view.get_angle_diff(&boundary_vec);
-            println!("angle: {}, fov: {}, boundary: {}", angle.abs().to_degrees(), self.fov, value);
+            let angle = view.get_angle_diff(target);
 
-            return Some((distance, angle));
+            let fov_half = self.fov / 2.0;
+
+            if angle >= -fov_half && angle <= fov_half {
+                return Some((distance, angle));
+            }
         }
-
-
-
-        /*let view = self.get_view_vector();
-        let boundary_vec = (point.0 - self.pos.0, point.1 - self.pos.1);
-
-        let angle = get_angle(view, boundary_vec);
-
-        //println!("angle: {}, fov: {}, boundary: {}", angle.abs().to_degrees(), self.fov, value);
-        if angle.abs() < self.fov {
-            return Some((distance, angle));
-        }*/
 
         None
     }
+
+    pub fn sees_line(&self, line: ((f32, f32), f32)) -> Option<(f32, f32)> {
+
+        let point = self.get_nearest_point_on_line(line);
+        let shortest_distance = get_distance(self.pos, point);
+
+        if shortest_distance < self.view_radius {
+            let angle = self.get_view_vector().get_angle_diff(point.sub(self.pos));
+            let fov_half = self.fov / 2.0;
+
+            if angle.abs() < fov_half {
+                return Some((shortest_distance, angle));
+            }
+            else{
+                let left_angle = self.rot - fov_half;
+                let right_angle = self.rot + fov_half;
+
+                let left_ray = (self.pos, left_angle);
+                let right_ray = (self.pos, right_angle);
+
+                let left_intersection = line_intersects_line(left_ray, line);
+                let right_intersection = line_intersects_line(right_ray, line);
+
+
+                if left_intersection != None && right_intersection != None {
+
+                    let left_intersection = left_intersection.unwrap();
+                    let right_intersection = right_intersection.unwrap();
+
+                    //direction can be +1.0 or -1.0, depending on if the intersection is in view or 180° behind it
+                    let left_direction = self.get_rotated_view_vector(-fov_half).normalize().dot(left_intersection.sub(self.pos).normalize());
+                    let right_direction = self.get_rotated_view_vector(fov_half).normalize().dot(right_intersection.sub(self.pos).normalize());
+
+                    if left_direction > 0.0 && right_direction > 0.0 {
+                        let left_distance = get_distance(self.pos, left_intersection);
+                        let right_distance = get_distance(self.pos, right_intersection);
+
+                        if left_distance < right_distance && left_distance < self.view_radius {
+                            return Some((left_distance, -fov_half));
+                        }
+                        else if right_distance < self.view_radius {
+                            return Some((right_distance, fov_half));
+                        }
+                    }
+                    else if left_direction > 0.0 {
+                        let left_distance = get_distance(self.pos, left_intersection);
+                        if left_distance < self.view_radius {
+                            return Some((left_distance, -fov_half));
+                        }
+                    }
+                    else if right_direction > 0.0 {
+                        let right_distance = get_distance(self.pos, right_intersection);
+                        if right_distance < self.view_radius {
+                            return Some((right_distance, fov_half));
+                        }
+                    }
+                }
+
+            }
+        }
+        None
+    }
+
+    fn get_nearest_point_on_line(&self, line: ((f32, f32), f32)) -> (f32, f32) {
+        line_intersects_line((self.pos, line.1 + PI / 2.0), line).unwrap()
+    }
+
 }

@@ -1,5 +1,5 @@
 [package]
-name = "rust_test"
+name = "neural_net"
 version = "0.1.0"
 authors = ["jakob <jakobfischer93@gmail.com>"]
 
@@ -7,3 +7,4 @@ authors = ["jakob <jakobfischer93@gmail.com>"]
 rand = "0.3"
 allegro = "0.0.29"
 allegro_primitives = "0.0.29"
+allegro_font = "0.0.29"
