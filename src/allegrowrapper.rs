@@ -26,7 +26,7 @@ pub trait Drawable {
 impl AllegroWrapper {
 
     pub fn new(width: i32, height: i32) -> Result<AllegroWrapper, String> {
-        let mut core = match allegro::Core::init() {
+        let core = match allegro::Core::init() {
             Ok(e) => e,
             Err(e) => return Err(String::from("Could not init core: ") + &e)
         };
@@ -68,8 +68,11 @@ impl AllegroWrapper {
         };
 
         event_queue.register_event_source(display.get_event_source());
-        event_queue.register_event_source(core.get_keyboard_event_source());
         event_queue.register_event_source(timer.get_event_source());
+        match core.get_keyboard_event_source() {
+            Some(e) => event_queue.register_event_source(e),
+            None => return Err(String::from("Could not retrieve keyboard event source"))
+        }
 
         let w = display.get_width();
         let h = display.get_height();

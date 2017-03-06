@@ -5,6 +5,6 @@ authors = ["jakob <jakobfischer93@gmail.com>"]
 
 [dependencies]
 rand = "0.3"
-allegro = "0.0.29"
-allegro_primitives = "0.0.29"
-allegro_font = "0.0.29"
+allegro = "0.0.30"
+allegro_primitives = "0.0.30"
+allegro_font = "0.0.30"
