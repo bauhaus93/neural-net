@@ -5,23 +5,27 @@ use std::f32;
 use std::f32::consts::PI;
 
 use allegro;
+use allegro::{ KeyCode, TimerTick, Timer };
+use allegro_font::{ FontDrawing, FontAlign };
 
-use allegrowrapper::{ AllegroWrapper, Drawable };
+use allegrodata::{ AllegroData, Drawable };
 use bot::Bot;
 
 pub struct Simulator {
-    allegro_wrapper: AllegroWrapper,
+    allegro_data: AllegroData,
     bots: RefCell<Vec<Bot>>,
     boundary_low: (f32, f32),
     boundary_hi: (f32, f32),
     ticks: u64,
+    tickrate: i32,
+    timer: Timer,
 }
 
 impl Simulator {
 
-    pub fn new(screen_size: (i32, i32)) -> Result<Simulator, String> {
+    pub fn new(screen_size: (i32, i32), tickrate: i32) -> Result<Simulator, String> {
 
-        let wrapper = match AllegroWrapper::new(screen_size.0, screen_size.1) {
+        let allegro_data = match AllegroData::new(screen_size.0, screen_size.1) {
                 Ok(e) => e,
                 Err(e) => return Err(e)
         };
@@ -36,13 +40,19 @@ impl Simulator {
             bots.push(bot);
         }
 
+        let timer = match allegro_data.create_timer(1.0 / tickrate as f64) {
+            Ok(e) => e,
+            Err(e) => return Err(e)
+        };
 
         let sim = Simulator {
-            allegro_wrapper: wrapper,
+            allegro_data: allegro_data,
             bots: RefCell::new(bots),
             boundary_low: low,
             boundary_hi: hi,
             ticks: 0,
+            tickrate: tickrate,
+            timer: timer,
         };
 
         Ok(sim)
@@ -50,45 +60,59 @@ impl Simulator {
 
     pub fn mainloop(&mut self) {
         let mut redraw = false;
+        static TICKRATE_MOD_STEP: i32 = 10;
 
-        self.allegro_wrapper.start_timer();
+        self.timer.start();
 
         'exit: loop {
 
 
-            if redraw && self.allegro_wrapper.is_event_queue_empty() {
+            if redraw && self.allegro_data.get_event_queue().is_empty() {
                 self.redraw();
                 redraw = false;
             }
 
-            match self.allegro_wrapper.wait_for_event() {
+            match self.allegro_data.get_event_queue().wait_for_event() {
 
-                allegro::KeyDown{ keycode: k, .. } =>
-                    match k {
-                        allegro::KeyCode::Escape => break 'exit,
-                        allegro::KeyCode::F => {
-                            self.allegro_wrapper.stop_timer();
-                            self.fast_forward(1000);
-                            self.allegro_wrapper.start_timer();
-                        },
-                        allegro::KeyCode::Space => self.allegro_wrapper.toggle_timer(),
-                        allegro::KeyCode::I => self.allegro_wrapper.mod_timer_speed(1.25),
-                        allegro::KeyCode::O => self.allegro_wrapper.mod_timer_speed(0.75),
-                        _ => {}
+                allegro::KeyDown{ keycode: k, .. } => match k {
+                    KeyCode::Escape => break 'exit,
+                    KeyCode::F => {
+                        self.timer.stop();
+                        self.fast_forward(1000);
+                        self.timer.start();
+                    },
+                    KeyCode::Space => self.toggle_timer(),
+                    KeyCode::I => self.mod_speed(TICKRATE_MOD_STEP),
+                    KeyCode::O => self.mod_speed(-TICKRATE_MOD_STEP),
+                    _ => {}
                 },
 
-
-                allegro::TimerTick{..} => {
+                TimerTick{..} => {
                     self.cycle_bots();
                     redraw = true;
                 },
-
                 _ => {}
-
             }
         }
 
-        self.allegro_wrapper.stop_timer();
+        self.timer.stop();
+    }
+
+    fn toggle_timer(&self) {
+        match self.timer.is_started() {
+            true => self.timer.stop(),
+            false => self.timer.start()
+        }
+    }
+
+    fn mod_speed(&mut self, tickrate_mod: i32) {
+        self.tickrate += tickrate_mod;
+        match self.tickrate {
+            tr_mod if tr_mod < 10 => self.tickrate = 10,
+            tr_mod if tr_mod > 500 => self.tickrate = 500,
+            _ => {}
+        }
+        self.timer.set_speed(1.0 / self.tickrate as f64)
     }
 
     pub fn fast_forward(&mut self, cycles: u32) {
@@ -162,40 +186,17 @@ impl Simulator {
 
     fn redraw(&self) {
 
-        self.allegro_wrapper.clear_black();
+        let core = self.allegro_data.get_core();
+
+        core.clear_to_color(self.allegro_data.get_black());
 
         for bot in self.bots.borrow().iter() {
-            bot.draw(&self.allegro_wrapper);
-
-            /*let a = self.get_nearest_boundary(bot);
-
-            if a != (0.0, 0.0) {
-                println!("strike! {}, {}", a.0, a.1);
-                let (dist, angle) = a;
-                let (bot_x, bot_y) = bot.get_pos();
-                let bot_rot = bot.get_rotation();
-                let pos = (bot_x + (bot_rot + angle).cos() * dist, bot_y + (bot_rot + angle).sin() * dist);
-                self.allegro_wrapper.draw_line(bot_x, bot_y, pos.0, pos.1, self.allegro_wrapper.get_white(), 4.0);
-            }*/
-
-            /*let (pos_x, pos_y) = bot.get_pos();
-
-            for other_bot in self.bots.borrow().iter() {
-
-                if bot.get_pos() == other_bot.get_pos() {
-                    continue;
-                }
-
-                if bot.sees_point(other_bot.get_pos()) != None {
-                    let (other_x, other_y) = other_bot.get_pos();
-                    self.allegro_wrapper.draw_line(pos_x, pos_y, other_x, other_y, self.allegro_wrapper.get_white(), 2.0);
-                }
-            }*/
+            bot.draw(&self.allegro_data);
         }
 
-        self.allegro_wrapper.draw_text(format!("bot ticks: {}", self.ticks), (5.0, 5.0));
-        self.allegro_wrapper.draw_text(format!("tickrate: {}", self.allegro_wrapper.get_tick_rate()), (5.0, 15.0));
-        self.allegro_wrapper.flip_display();
+        core.draw_text(self.allegro_data.get_std_font(), self.allegro_data.get_white(), 5.0, 5.0, FontAlign::Left, &format!("bot ticks: {}", self.ticks));
+        core.draw_text(self.allegro_data.get_std_font(), self.allegro_data.get_white(), 5.0, 15.0, FontAlign::Left, &format!("tickrate: {}", self.tickrate));
+        core.flip_display();
     }
 
 }

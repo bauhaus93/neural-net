@@ -9,7 +9,7 @@ mod neuralnet;
 mod vectorn;
 mod trainingset;
 mod simulator;
-mod allegrowrapper;
+mod allegrodata;
 mod bot;
 mod utility;
 mod ray;
@@ -17,7 +17,7 @@ mod ray;
 use simulator::Simulator;
 
 fn main() {
-    let mut sim = match Simulator::new((800, 600)) {
+    let mut sim = match Simulator::new((800, 600), 30) {
         Ok(e) => e,
         Err(e) => {
             println!("{:?}", e);

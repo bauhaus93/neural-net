@@ -7,7 +7,7 @@ use rand;
 use allegro;
 
 use neuralnet::NeuralNet;
-use allegrowrapper::{ AllegroWrapper, Drawable };
+use allegrodata::{ AllegroData, Drawable };
 use utility::{ get_distance, line_intersects_line, Vector2D };
 
 
@@ -28,19 +28,19 @@ pub enum Direction {
 }
 
 impl Drawable for Bot {
-    fn draw(&self, allegro_wrapper: &AllegroWrapper) {
+    fn draw(&self, allegro_data: &AllegroData) {
         //let x = self.pos.0 + self.view_radius * f32::cos(self.rot);
         //let y = self.pos.1 + self.view_radius * f32::sin(self.rot);
         //allegro_wrapper.draw_line(self.pos.0, self.pos.1, x, y, allegro_wrapper.get_white(), 1.0);
 
-        allegro_wrapper.draw_pieslice(self.pos.0, self.pos.1,
+        allegro_data.get_primitives_addon().draw_pieslice(self.pos.0, self.pos.1,
                                       self.view_radius,
                                       self.rot - self.fov / 2.0,
                                       self.fov,
-                                      allegro_wrapper.get_white(),
+                                      allegro_data.get_white(),
                                       1.0);
 
-        allegro_wrapper.draw_filled_circle(self.pos.0, self.pos.1, self.size, self.color);
+        allegro_data.get_primitives_addon().draw_filled_circle(self.pos.0, self.pos.1, self.size, self.color);
     }
 }
 

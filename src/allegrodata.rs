@@ -1,32 +1,41 @@
 use std::result::Result;
 use std::string::String;
 
-use allegro;
-use allegro_primitives;
+use allegro::*;
+use allegro_primitives::*;
 use allegro_font::*;
 
-pub struct AllegroWrapper {
-    core: allegro::Core,
-    display: allegro::Display,
-    event_queue: allegro::EventQueue,
-    timer: allegro::Timer,
-    primitives_addon: allegro_primitives::PrimitivesAddon,
+pub struct AllegroData {
+    core: Core,
+    display: Display,
+    event_queue: EventQueue,
+    primitives_addon: PrimitivesAddon,
     font_addon: FontAddon,
-    font: Font,
-    width: i32,
-    height: i32,
-    black: allegro::Color,
-    white: allegro::Color
+    font_std: Font,
+    black: Color,
+    white: Color,
 }
+
+/*
+let timer = match allegro::Timer::new(&core, 1.0/30.0) {
+    Ok(e) => e,
+    Err(_) => return Err(String::from("Could not create timer"))
+};
+
+event_queue.register_event_source(timer.get_event_source());
+
+
+
+*/
 
 pub trait Drawable {
-    fn draw(&self, allegro_wrapper: &AllegroWrapper);
+    fn draw(&self, allegro_data: &AllegroData);
 }
 
-impl AllegroWrapper {
+impl AllegroData {
 
-    pub fn new(width: i32, height: i32) -> Result<AllegroWrapper, String> {
-        let core = match allegro::Core::init() {
+    pub fn new(width: i32, height: i32) -> Result<AllegroData, String> {
+        let core = match Core::init() {
             Ok(e) => e,
             Err(e) => return Err(String::from("Could not init core: ") + &e)
         };
@@ -36,23 +45,17 @@ impl AllegroWrapper {
             Err(_) => return Err(String::from("Could not install keyboard"))
         }
 
-
-        let display = match allegro::Display::new(&core, width, height) {
+        let display = match Display::new(&core, width, height) {
             Ok(e) => e,
             Err(_) => return Err(String::from("Could not create display"))
         };
 
-        let event_queue = match allegro::EventQueue::new(&core) {
+        let event_queue = match EventQueue::new(&core) {
             Ok(e) => e,
             Err(_) => return Err(String::from("Could not create event queue"))
         };
 
-        let timer = match allegro::Timer::new(&core, 1.0/30.0) {
-            Ok(e) => e,
-            Err(_) => return Err(String::from("Could not create timer"))
-        };
-
-        let primitives_addon = match allegro_primitives::PrimitivesAddon::init(&core) {
+        let primitives_addon = match PrimitivesAddon::init(&core) {
             Ok(e) => e,
             Err(e) => return Err(String::from("Could not init primitives addon: ") + &e)
         };
@@ -68,69 +71,73 @@ impl AllegroWrapper {
         };
 
         event_queue.register_event_source(display.get_event_source());
-        event_queue.register_event_source(timer.get_event_source());
+
         match core.get_keyboard_event_source() {
             Some(e) => event_queue.register_event_source(e),
             None => return Err(String::from("Could not retrieve keyboard event source"))
         }
 
-        let w = display.get_width();
-        let h = display.get_height();
-        let black = allegro::Color::from_rgb(0, 0, 0);
-        let white = allegro::Color::from_rgb(0xFF, 0xFF, 0xFF);
-
-        let allegro_wrapper = AllegroWrapper {
+        let allegro_data = AllegroData {
             core: core,
             display: display,
             event_queue: event_queue,
-            timer: timer,
             primitives_addon: primitives_addon,
             font_addon: font_addon,
-            font: font,
-            width: w,
-            height: h,
-            black: black,
-            white: white
+            font_std: font,
+            black: Color::from_rgb(0, 0, 0),
+            white: Color::from_rgb(0xFF, 0xFF, 0xFF)
         };
 
-        Ok(allegro_wrapper)
+        Ok(allegro_data)
     }
 
-    pub fn is_event_queue_empty(&self) -> bool {
+    pub fn get_core(&self) -> &Core {
+        &self.core
+    }
+
+    pub fn get_display(&self) -> &Display {
+        &self.display
+    }
+
+    pub fn get_event_queue(&self) -> &EventQueue {
+        &self.event_queue
+    }
+
+    pub fn get_primitives_addon(&self) -> &PrimitivesAddon {
+        &self.primitives_addon
+    }
+
+    pub fn get_font_addon(&self) -> &FontAddon {
+        &self.font_addon
+    }
+
+    pub fn get_std_font(&self) -> &Font {
+        &self.font_std
+    }
+
+    pub fn get_black(&self) -> Color {
+        self.black
+    }
+
+    pub fn get_white(&self) -> Color {
+        self.white
+    }
+
+    pub fn create_timer(&self, speed: f64) -> Result<Timer, String> {
+        let timer = match Timer::new(&self.core, speed) {
+            Ok(e) => e,
+            Err(_) => return Err(String::from("Could not create timer"))
+        };
+
+        self.event_queue.register_event_source(timer.get_event_source());
+
+        Ok(timer)
+    }
+
+    /*pub fn is_event_queue_empty(&self) -> bool {
         self.event_queue.is_empty()
     }
 
-    pub fn start_timer(&self) {
-        self.timer.start();
-    }
-
-    pub fn stop_timer(&self) {
-        self.timer.stop();
-    }
-
-    pub fn get_tick_rate(&self) -> u32 {
-        (1.0 / self.timer.get_speed()) as u32
-    }
-
-    pub fn toggle_timer(&self) {
-        if self.timer.is_started() {
-            self.timer.stop();
-        }
-        else {
-            self.timer.start();
-        }
-    }
-
-    pub fn mod_timer_speed(&self, factor: f64) {
-        let mut new_speed = self.timer.get_speed() / factor;
-        if new_speed < 1.0 / 500.0 {
-            new_speed = 1.0 / 500.0;
-        }
-        else if new_speed > 1.0 {
-            new_speed = 1.0;
-        }
-        self.timer.set_speed(new_speed);
-    }
 
     pub fn wait_for_event(&self) -> allegro::Event {
         self.event_queue.wait_for_event()
@@ -178,6 +185,6 @@ impl AllegroWrapper {
 
     pub fn get_white(&self) -> allegro::Color {
         self.white
-    }
+    }*/
 
 }
