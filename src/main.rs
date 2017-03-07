@@ -17,7 +17,11 @@ mod ray;
 use simulator::Simulator;
 
 fn main() {
-    let mut sim = match Simulator::new((800, 600), 30) {
+    const SCREEN_SIZE: (i32, i32) = (800, 600);
+    const FIELD_SIZE: (i32, i32) = (SCREEN_SIZE.0 * 2, SCREEN_SIZE.1 * 2);
+    const TICK_RATE: i32 = 30;
+
+    let mut sim = match Simulator::new(SCREEN_SIZE, FIELD_SIZE, TICK_RATE) {
         Ok(e) => e,
         Err(e) => {
             println!("{:?}", e);

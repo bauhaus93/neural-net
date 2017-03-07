@@ -33,12 +33,13 @@ impl Drawable for Bot {
         //let y = self.pos.1 + self.view_radius * f32::sin(self.rot);
         //allegro_wrapper.draw_line(self.pos.0, self.pos.1, x, y, allegro_wrapper.get_white(), 1.0);
 
+
         allegro_data.get_primitives_addon().draw_pieslice(self.pos.0, self.pos.1,
                                       self.view_radius,
                                       self.rot - self.fov / 2.0,
                                       self.fov,
                                       allegro_data.get_white(),
-                                      1.0);
+                                      2.0);
 
         allegro_data.get_primitives_addon().draw_filled_circle(self.pos.0, self.pos.1, self.size, self.color);
     }
@@ -91,10 +92,10 @@ impl Bot {
         self.nn.randomize(min, max);
     }
 
-    pub fn randomize_pos_rot(&mut self, boundary_low: (f32, f32), boundary_hi: (f32, f32)) {
-        let range_x = Range::new(boundary_low.0, boundary_hi.0);
-        let range_y = Range::new(boundary_low.1, boundary_hi.1);
-        let range_rot = Range::new(0.0, 2.0 * f32::consts::PI);
+    pub fn randomize_pos_rot(&mut self, field_size: (f32, f32)) {
+        let range_x = Range::new(0.0, field_size.0);
+        let range_y = Range::new(0.0, field_size.1);
+        let range_rot = Range::new(0.0, 2.0 * PI);
         let mut rng = rand::thread_rng();
 
         self.pos = (range_x.ind_sample(&mut rng), range_y.ind_sample(&mut rng));
@@ -125,14 +126,11 @@ impl Bot {
         }
     }
 
-    pub fn in_boundary(&self, low: (f32, f32), hi: (f32, f32)) -> bool {
-        assert!(low.0 < hi.0);
-        assert!(low.0 < hi.1);
-
-        if self.pos.0 < low.0 || self.pos.0 > hi.0 || self.pos.1 < low.1 || self.pos.1 > hi.1 {
-            return false;
-        }
-        true
+    pub fn in_boundary(&self, field_size: (f32, f32)) -> bool {
+        self.pos.0 >= 0.0 &&
+        self.pos.1 >= 0.0 &&
+        self.pos.0 < field_size.0 &&
+        self.pos.1 < field_size.1
     }
 
     pub fn get_pos(&self) -> (f32, f32) {

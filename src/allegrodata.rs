@@ -16,18 +16,6 @@ pub struct AllegroData {
     white: Color,
 }
 
-/*
-let timer = match allegro::Timer::new(&core, 1.0/30.0) {
-    Ok(e) => e,
-    Err(_) => return Err(String::from("Could not create timer"))
-};
-
-event_queue.register_event_source(timer.get_event_source());
-
-
-
-*/
-
 pub trait Drawable {
     fn draw(&self, allegro_data: &AllegroData);
 }
@@ -40,10 +28,9 @@ impl AllegroData {
             Err(e) => return Err(String::from("Could not init core: ") + &e)
         };
 
-        match core.install_keyboard() {
-            Ok(e) => e,
-            Err(_) => return Err(String::from("Could not install keyboard"))
-        }
+        //needs direct backbuffer drawing
+        //core.set_new_display_option(DisplayOption::SampleBuffers, 1, DisplayOptionImportance::Require);
+        //core.set_new_display_option(DisplayOption::Samples, 8, DisplayOptionImportance::Suggest);
 
         let display = match Display::new(&core, width, height) {
             Ok(e) => e,
@@ -70,12 +57,20 @@ impl AllegroData {
             Err(_) => return Err(String::from("Could not load builtin font"))
         };
 
+        match core.install_keyboard() {
+            Ok(e) => e,
+            Err(_) => return Err(String::from("Could not install keyboard"))
+        }
+
         event_queue.register_event_source(display.get_event_source());
 
         match core.get_keyboard_event_source() {
             Some(e) => event_queue.register_event_source(e),
             None => return Err(String::from("Could not retrieve keyboard event source"))
         }
+
+
+
 
         let allegro_data = AllegroData {
             core: core,
