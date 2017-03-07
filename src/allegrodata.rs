@@ -58,8 +58,13 @@ impl AllegroData {
         };
 
         match core.install_keyboard() {
-            Ok(e) => e,
+            Ok(_) => {},
             Err(_) => return Err(String::from("Could not install keyboard"))
+        }
+
+        match core.install_mouse() {
+            Ok(_) => {},
+            Err(_) => return Err(String::from("Could not install mouse"))
         }
 
         event_queue.register_event_source(display.get_event_source());
@@ -69,7 +74,10 @@ impl AllegroData {
             None => return Err(String::from("Could not retrieve keyboard event source"))
         }
 
-
+        match core.get_mouse_event_source() {
+            Some(e) => event_queue.register_event_source(e),
+            None => return Err(String::from("Could not retrieve mouse event source"))
+        }
 
 
         let allegro_data = AllegroData {

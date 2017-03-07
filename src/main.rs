@@ -18,7 +18,7 @@ use simulator::Simulator;
 
 fn main() {
     const SCREEN_SIZE: (i32, i32) = (800, 600);
-    const FIELD_SIZE: (i32, i32) = (SCREEN_SIZE.0 * 2, SCREEN_SIZE.1 * 2);
+    const FIELD_SIZE: (i32, i32) = (SCREEN_SIZE.0 * 3, SCREEN_SIZE.1 * 3);
     const TICK_RATE: i32 = 30;
 
     let mut sim = match Simulator::new(SCREEN_SIZE, FIELD_SIZE, TICK_RATE) {
