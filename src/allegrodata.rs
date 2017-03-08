@@ -17,7 +17,7 @@ pub struct AllegroData {
 }
 
 pub trait Drawable {
-    fn draw(&self, allegro_data: &AllegroData);
+    fn draw(&self, allegro_data: &AllegroData, camera_pos: (f32, f32), scale: (f32, f32));
 }
 
 impl AllegroData {

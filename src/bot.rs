@@ -28,20 +28,26 @@ pub enum Direction {
 }
 
 impl Drawable for Bot {
-    fn draw(&self, allegro_data: &AllegroData) {
+    fn draw(&self, allegro_data: &AllegroData, camera_pos: (f32, f32), scale: (f32, f32)) {
         //let x = self.pos.0 + self.view_radius * f32::cos(self.rot);
         //let y = self.pos.1 + self.view_radius * f32::sin(self.rot);
         //allegro_wrapper.draw_line(self.pos.0, self.pos.1, x, y, allegro_wrapper.get_white(), 1.0);
 
 
-        allegro_data.get_primitives_addon().draw_pieslice(self.pos.0, self.pos.1,
-                                      self.view_radius,
-                                      self.rot - self.fov / 2.0,
-                                      self.fov,
-                                      allegro_data.get_white(),
-                                      2.0);
+        allegro_data.get_primitives_addon().draw_pieslice(
+                                        (self.pos.0 - camera_pos.0) * scale.0,
+                                        (self.pos.1 - camera_pos.1) * scale.1,
+                                        self.view_radius * scale.0,
+                                        self.rot - self.fov / 2.0,
+                                        self.fov,
+                                        allegro_data.get_white(),
+                                        2.0);
 
-        allegro_data.get_primitives_addon().draw_filled_circle(self.pos.0, self.pos.1, self.size, self.color);
+        allegro_data.get_primitives_addon().draw_filled_circle(
+                                        (self.pos.0 - camera_pos.0) * scale.0,
+                                        (self.pos.1 - camera_pos.1) * scale.1,
+                                        self.size * scale.0,
+                                        self.color);
     }
 }
 
