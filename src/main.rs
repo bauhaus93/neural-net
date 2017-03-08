@@ -13,8 +13,10 @@ mod allegrodata;
 mod bot;
 mod utility;
 mod ray;
+mod window;
 
 use simulator::Simulator;
+use window::{ WindowBuilder };
 
 fn main() {
     const SCREEN_SIZE: (i32, i32) = (800, 600);
@@ -22,16 +24,28 @@ fn main() {
     const BOT_COUNT: u32 = 40;
     const TICK_RATE: i32 = 30;
 
-    let mut sim = match Simulator::new(SCREEN_SIZE, FIELD_SIZE, BOT_COUNT, TICK_RATE) {
-        Ok(e) => e,
+    let sim = match Simulator::new(FIELD_SIZE, BOT_COUNT) {
+        Ok(sim) => sim,
         Err(e) => {
-            println!("{:?}", e);
+            println!("ERROR: {:?}", e);
             return;
         }
     };
 
-    sim.mainloop();
+    let wnd = WindowBuilder::new(SCREEN_SIZE)
+        .frame_pos((5.0, 25.0))
+        .frame_size((SCREEN_SIZE.0 as f32 * 0.9, SCREEN_SIZE.1 as f32 * 0.9))
+        .tickrate(30)
+        .simulator(sim)
+        .finish();
 
+    match wnd {
+        Ok(mut wnd) => wnd.mainloop(),
+        Err(e) => {
+            println!("ERROR: {:?}", e);
+            return;
+        }
+    };
 
 }
 
