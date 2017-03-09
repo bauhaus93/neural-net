@@ -9,7 +9,7 @@ use allegro;
 use neuralnet::NeuralNet;
 use allegrodata::{ AllegroData, Drawable };
 use utility::{ get_distance, line_intersects_line, Vector2D };
-
+use environment::Environment;
 
 pub struct Bot {
     nn: NeuralNet,
@@ -19,6 +19,7 @@ pub struct Bot {
     speed: f32,
     view_radius: f32,
     fov: f32,
+    energy: u32,
     color: allegro::Color
 }
 
@@ -41,7 +42,7 @@ impl Drawable for Bot {
                                         self.rot - self.fov / 2.0,
                                         self.fov,
                                         allegro_data.get_white(),
-                                        2.0);
+                                        1.0);
 
         allegro_data.get_primitives_addon().draw_filled_circle(
                                         (self.pos.0 - camera_pos.0) * scale.0,
@@ -66,6 +67,7 @@ impl Bot {
             speed: speed,
             view_radius: 8.0 * size,
             fov: PI / 2.0,
+            energy: 1000,
             color: allegro::Color::from_rgb(0xFF, 0xFF, 0xFF)
         };
 
@@ -74,20 +76,25 @@ impl Bot {
         bot
     }
 
-    pub fn process(&mut self, environment: &Vec<f64>) -> Vec<f64> {
+    pub fn process(&mut self, environment: Environment) {
 
-        let actions = self.nn.feed_forward(environment);
+        let actions = self.nn.feed_forward(environment.get_input());
 
-        if actions[0] > 0.75 && actions[0] > actions[1] {
-            self.rotate(Direction::Left);
-        }
-        else if actions[1] > 0.75 && actions[1] > actions[0] {
-            self.rotate(Direction::Right);
+        match actions[0] > actions[1] {
+            true => self.rotate(actions[0] as f32),
+            false => self.rotate(-actions[1] as f32)
         }
 
         self.shift();
 
-        actions
+        let feedback = environment.get_expected_output(&actions);
+
+
+        self.give_feedback(&feedback);
+
+        /*if self.energy > 0{
+            self.energy -= 1;
+        }*/
     }
 
     pub fn give_feedback(&mut self, feedback: &Vec<f64>) {
@@ -123,13 +130,10 @@ impl Bot {
         self.pos.1 += self.speed * f32::sin(self.rot);
     }
 
-    pub fn rotate(&mut self, dir: Direction) {
-        let offset = f32::consts::PI / 15.0;
+    pub fn rotate(&mut self, strength: f32) {
+        static MAX_ROTATION_SPEED: f32 = PI / 15.0;
 
-        match dir {
-            Direction::Left => self.rot += offset,
-            Direction::Right => self.rot -= offset
-        }
+        self.rot += MAX_ROTATION_SPEED * strength;
     }
 
     pub fn in_boundary(&self, field_size: (f32, f32)) -> bool {
@@ -157,6 +161,10 @@ impl Bot {
 
     pub fn get_fov(&self) -> f32 {
         self.fov
+    }
+
+    pub fn get_energy(&self) -> u32 {
+        self.energy
     }
 
     fn get_view_vector(&self) -> (f32, f32) {

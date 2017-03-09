@@ -14,13 +14,14 @@ mod bot;
 mod utility;
 mod ray;
 mod window;
+mod environment;
 
 use simulator::Simulator;
 use window::{ WindowBuilder };
 
 fn main() {
-    const SCREEN_SIZE: (i32, i32) = (800, 600);
-    const FIELD_SIZE: (i32, i32) = (SCREEN_SIZE.0 * 3, SCREEN_SIZE.1 * 3);
+    const SCREEN_SIZE: (i32, i32) = (1024, 768);
+    const FIELD_SIZE: (i32, i32) = (SCREEN_SIZE.0 * 2, SCREEN_SIZE.1 * 2);
     const BOT_COUNT: u32 = 40;
     const TICK_RATE: i32 = 30;
 
@@ -36,6 +37,7 @@ fn main() {
         .frame_pos((5.0, 25.0))
         .frame_size((SCREEN_SIZE.0 as f32 * 0.9, SCREEN_SIZE.1 as f32 * 0.9))
         .tickrate(30)
+        .redraw_rate(30)
         .simulator(sim)
         .finish();
 

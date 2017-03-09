@@ -1,5 +1,6 @@
 use std::option::Option;
 use std::f32;
+use std::time::{ Duration, Instant };
 
 use allegro::{ KeyCode, KeyDown, MouseButtonDown, MouseAxes, TimerTick, Timer, Bitmap, Flag, Color };
 use allegro_font::{ FontDrawing, FontAlign };
@@ -17,7 +18,8 @@ pub struct Window {
     scale: (f32, f32),
     field_bmp: Bitmap,
     tickrate: i32,
-    timer: Timer,
+    timer_bot_update: Timer,
+    timer_redraw: Timer,
 }
 
 pub struct WindowBuilder {
@@ -25,6 +27,7 @@ pub struct WindowBuilder {
     frame_pos: (f32, f32),
     frame_size: (f32, f32),
     tickrate: i32,
+    redraw_rate: u32,
     simulator: Option<Simulator>
 }
 
@@ -33,12 +36,13 @@ impl WindowBuilder {
     pub fn new(screen_size: (i32, i32)) -> WindowBuilder {
         assert!(screen_size.0 > 0);
         assert!(screen_size.1 > 0);
-        
+
         WindowBuilder {
             screen_size: screen_size,
             frame_pos: (0.0, 0.0),
             frame_size: (screen_size.0 as f32, screen_size.1 as f32),
             tickrate: 30,
+            redraw_rate: 30,
             simulator: None
         }
     }
@@ -55,6 +59,11 @@ impl WindowBuilder {
 
     pub fn tickrate(mut self, tickrate: i32) -> Self {
         self.tickrate = tickrate;
+        self
+    }
+
+    pub fn redraw_rate(mut self, redraw_rate: u32) -> Self {
+        self.redraw_rate = redraw_rate;
         self
     }
 
@@ -75,7 +84,12 @@ impl WindowBuilder {
             Err(_) => return Err(String::from("Could create field bitmap"))
         };
 
-        let timer = match allegro_data.create_timer(1.0 / self.tickrate as f64) {
+        let timer_tick = match allegro_data.create_timer(1.0 / self.tickrate as f64) {
+            Ok(e) => e,
+            Err(e) => return Err(e)
+        };
+
+        let timer_redraw = match allegro_data.create_timer(1.0 / self.redraw_rate as f64) {
             Ok(e) => e,
             Err(e) => return Err(e)
         };
@@ -100,7 +114,8 @@ impl WindowBuilder {
             scale: (self.frame_size.0 / field_size.0, self.frame_size.1 / field_size.1),
             field_bmp: field_bmp,
             tickrate: self.tickrate,
-            timer: timer,
+            timer_bot_update: timer_tick,
+            timer_redraw: timer_redraw
         };
 
         Ok(window)
@@ -116,7 +131,8 @@ impl Window {
         static CAMERA_MOVE_STEP: f32 = 100.0;
         static CAMERA_ZOOM_FACTOR: f32 = 1.5;
 
-        self.timer.start();
+        self.timer_bot_update.start();
+        self.timer_redraw.start();
 
         'exit: loop {
 
@@ -130,11 +146,11 @@ impl Window {
                 KeyDown{ keycode: k, .. } => match k {
                     KeyCode::Escape => break 'exit,
                     KeyCode::F => {
-                        self.timer.stop();
+                        self.timer_bot_update.stop();
                         self.simulator.fast_forward(1000);
-                        self.timer.start();
+                        self.timer_bot_update.start();
                     },
-                    KeyCode::Space => self.toggle_timer(),
+                    KeyCode::Space => self.toggle_timers(),
                     KeyCode::I => self.mod_speed(TICKRATE_MOD_STEP),
                     KeyCode::O => self.mod_speed(-TICKRATE_MOD_STEP),
                     KeyCode::Left => self.move_camera((-CAMERA_MOVE_STEP, 0.0)),
@@ -174,15 +190,18 @@ impl Window {
                     _ => {}
                 },*/
 
-                TimerTick{..} => {
-                    self.simulator.cycle();
-                    redraw = true;
+                TimerTick{source: src, ..} => {
+                    match src == self.timer_redraw.get_event_source().get_event_source() {
+                        true => redraw = true,
+                        false => self.simulator.cycle()
+                    }
                 },
                 _ => {}
             }
         }
 
-        self.timer.stop();
+        self.timer_bot_update.stop();
+        self.timer_redraw.stop();
     }
 
     fn move_camera(&mut self, offset: (f32, f32)) {
@@ -236,10 +255,15 @@ impl Window {
         self.move_camera((0.0, 0.0));
     }
 
-    fn toggle_timer(&self) {
-        match self.timer.is_started() {
-            true => self.timer.stop(),
-            false => self.timer.start()
+    fn toggle_timers(&self) {
+        match self.timer_bot_update.is_started() {
+            true => self.timer_bot_update.stop(),
+            false => self.timer_bot_update.start()
+        }
+
+        match self.timer_redraw.is_started() {
+            true => self.timer_redraw.stop(),
+            false => self.timer_redraw.start()
         }
     }
 
@@ -248,7 +272,7 @@ impl Window {
         match self.tickrate {
             tr_mod if tr_mod < 10 => self.tickrate = 10,
             tr_mod if tr_mod > 500 => self.tickrate = 500,
-            _ => self.timer.set_speed(1.0 / self.tickrate as f64)
+            _ => self.timer_bot_update.set_speed(1.0 / self.tickrate as f64)
         }
     }
 
@@ -273,7 +297,16 @@ impl Window {
         }
     }
 
+    /*Redrawing with frequency of 60+ suddenly raised the execution time of
+    core.set_target_bitmap() AND
+    core.draw_text, if set_target_bitmap was disabled
+    Maybe related to max display frequency? But until now, there weren't any
+    CPU spikes if redraw frequency was higher than 60
+    */
     fn redraw(&self) {
+        /*static mut c: u32 = 0;
+        let now = Instant::now();*/
+
         const BORDER_THICKNESS: f32 = 2.0;
         const BORDER_THICKNESS_HALF: f32 = BORDER_THICKNESS / 2.0;
 
@@ -282,7 +315,9 @@ impl Window {
 
         core.clear_to_color(self.allegro_data.get_black());
 
+
         core.set_target_bitmap(&self.field_bmp);
+
         core.clear_to_color(Color::from_rgb(22, 22, 22));
 
         for bot in self.simulator.get_bots().borrow().iter() {
@@ -307,15 +342,23 @@ impl Window {
             self.allegro_data.get_primitives_addon().draw_line(0.0, self.frame_size.1 - BORDER_THICKNESS_HALF, self.frame_size.0, self.frame_size.1 - BORDER_THICKNESS_HALF, Color::from_rgb(0xFF, 0, 0), BORDER_THICKNESS);
         }
 
-        //TODO draw boundaries, if in view
-        //self.allegro_data.get_primitives_addon().draw_rectangle(5.0, 5.0, self.field_size.0 - 5.0, self.field_size.1 - 5.0, Color::from_rgb(0xFF, 0, 0), 10.0);
         core.set_target_bitmap(self.allegro_data.get_display().get_backbuffer());
 
         core.draw_bitmap(&self.field_bmp, self.frame_pos.0, self.frame_pos.1, Flag::zero());
 
         core.draw_text(self.allegro_data.get_std_font(), self.allegro_data.get_white(), 5.0, 5.0, FontAlign::Left, &format!("bot ticks: {}", self.simulator.get_ticks()));
         core.draw_text(self.allegro_data.get_std_font(), self.allegro_data.get_white(), 5.0, 15.0, FontAlign::Left, &format!("tickrate: {}", self.tickrate));
+
+
         core.flip_display();
+
+        /*unsafe{
+            if c % 30 == 0 {
+                println!("time: {:?} us", (now.elapsed().subsec_nanos() / 1000));
+            }
+            c += 1;
+        }*/
+
     }
 
 }
