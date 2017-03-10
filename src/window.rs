@@ -1,6 +1,6 @@
 use std::option::Option;
 use std::f32;
-use std::time::{ Duration, Instant };
+//use std::time::{ Duration, Instant };
 
 use allegro::{ KeyCode, KeyDown, MouseButtonDown, MouseAxes, TimerTick, Timer, Bitmap, Flag, Color };
 use allegro_font::{ FontDrawing, FontAlign };
@@ -320,11 +320,17 @@ impl Window {
 
         core.clear_to_color(Color::from_rgb(22, 22, 22));
 
+        for food in self.simulator.get_foods().borrow().iter() {
+            food.draw(&self.allegro_data, self.camera_pos, self.scale);
+        }
+
         for bot in self.simulator.get_bots().borrow().iter() {
             if self.point_in_view(bot.get_pos()){
                 bot.draw(&self.allegro_data, self.camera_pos, self.scale);
             }
         }
+
+
 
         if self.camera_pos.0 < f32::EPSILON {
             self.allegro_data.get_primitives_addon().draw_line(BORDER_THICKNESS_HALF, 0.0, BORDER_THICKNESS_HALF, self.frame_size.1, Color::from_rgb(0xFF, 0, 0), BORDER_THICKNESS);

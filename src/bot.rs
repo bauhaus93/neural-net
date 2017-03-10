@@ -10,6 +10,7 @@ use neuralnet::NeuralNet;
 use allegrodata::{ AllegroData, Drawable };
 use utility::{ get_distance, line_intersects_line, Vector2D };
 use environment::Environment;
+use food::Food;
 
 pub struct Bot {
     nn: NeuralNet,
@@ -17,6 +18,7 @@ pub struct Bot {
     rot: f32,
     size: f32,
     speed: f32,
+    rotation_speed: f32,
     view_radius: f32,
     fov: f32,
     energy: u32,
@@ -65,6 +67,7 @@ impl Bot {
             rot: 0.0,
             size: size,
             speed: speed,
+            rotation_speed: PI / 15.0,
             view_radius: 8.0 * size,
             fov: PI / 2.0,
             energy: 1000,
@@ -131,9 +134,8 @@ impl Bot {
     }
 
     pub fn rotate(&mut self, strength: f32) {
-        static MAX_ROTATION_SPEED: f32 = PI / 15.0;
 
-        self.rot += MAX_ROTATION_SPEED * strength;
+        self.rot += self.rotation_speed * strength;
     }
 
     pub fn in_boundary(&self, field_size: (f32, f32)) -> bool {
@@ -167,6 +169,10 @@ impl Bot {
         self.energy
     }
 
+    pub fn mod_energy(&mut self, value: u32) {
+        self.energy += value;
+    }
+
     fn get_view_vector(&self) -> (f32, f32) {
         (self.view_radius * self.rot.cos(),
          self.view_radius * self.rot.sin())
@@ -175,6 +181,17 @@ impl Bot {
     fn get_rotated_view_vector(&self, angle_offset: f32) -> (f32, f32) {
         (self.view_radius * (self.rot + angle_offset).cos(),
          self.view_radius * (self.rot + angle_offset).sin())
+    }
+
+    pub fn eat(&mut self, food: Food) {
+        self.energy += food.get_energy();
+
+        self.view_radius *= 1.1;
+
+        if self.view_radius > 16.0 * self.size {
+            self.view_radius = 16.0 * self.size;
+        }
+
     }
 
     pub fn sees_point(&self, point: (f32, f32)) -> Option<(f32, f32)> {

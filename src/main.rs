@@ -15,6 +15,7 @@ mod utility;
 mod ray;
 mod window;
 mod environment;
+mod food;
 
 use simulator::Simulator;
 use window::{ WindowBuilder };

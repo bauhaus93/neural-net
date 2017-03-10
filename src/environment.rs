@@ -20,6 +20,7 @@ impl Environment {
         &self.input
     }
 
+    #[allow(unused_variables)]
     pub fn get_expected_output(&self, output: &Vec<f64>) -> Vec<f64> {
         let mut target_output = vec![0.0; self.input.len()];
 
@@ -30,10 +31,18 @@ impl Environment {
                 _ => {}
             }
         }
+        else if self.input[2] > 0.0 {
+            match self.input[3] {
+                e if e > 0.0 => target_output[0] = e,
+                e if e < 0.0 => target_output[1] = -e,
+                _ => {}
+            }
+        }
         else{
             target_output[0] = 0.0; //output[0];
             target_output[1] = 0.0; //output[1];
         }
+
         target_output
     }
 
