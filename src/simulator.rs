@@ -88,10 +88,11 @@ impl Simulator {
     pub fn spawn_food(&mut self) {
         let range_x = Range::new(self.field_size.0 * 0.1, self.field_size.0 * 0.9);
         let range_y = Range::new(self.field_size.1 * 0.1, self.field_size.1 * 0.9);
+        let range_energy = Range::new(100, 500);
 
         let mut rng = rand::thread_rng();
 
-        self.food.borrow_mut().push(Food::new((range_x.ind_sample(&mut rng), range_y.ind_sample(&mut rng)), 10.0, 300));
+        self.food.borrow_mut().push(Food::new((range_x.ind_sample(&mut rng), range_y.ind_sample(&mut rng)), 10.0, range_energy.ind_sample(&mut rng)));
     }
 
     pub fn spawn_foods(&mut self, count: u32) {

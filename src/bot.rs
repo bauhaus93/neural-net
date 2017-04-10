@@ -68,7 +68,7 @@ impl Bot {
             size: size,
             speed: speed,
             rotation_speed: PI / 15.0,
-            view_radius: 8.0 * size,
+            view_radius: 10.0 * size,
             fov: PI / 2.0,
             energy: 1000,
             color: allegro::Color::from_rgb(0xFF, 0xFF, 0xFF)
@@ -88,16 +88,16 @@ impl Bot {
             false => self.rotate(-actions[1] as f32)
         }
 
-        self.shift();
+        self.move_forward(actions[2] as f32);
 
         let feedback = environment.get_expected_output(&actions);
 
 
         self.give_feedback(&feedback);
 
-        /*if self.energy > 0{
+        if self.energy > 0{
             self.energy -= 1;
-        }*/
+        }
     }
 
     pub fn give_feedback(&mut self, feedback: &Vec<f64>) {
@@ -128,13 +128,12 @@ impl Bot {
         self.color = allegro::Color::from_rgb(r, g, b);
     }
 
-    fn shift(&mut self) {
-        self.pos.0 += self.speed * f32::cos(self.rot);
-        self.pos.1 += self.speed * f32::sin(self.rot);
+    fn move_forward(&mut self, factor: f32) {
+        self.pos.0 += self.speed * factor * f32::cos(self.rot);
+        self.pos.1 += self.speed * factor * f32::sin(self.rot);
     }
 
     pub fn rotate(&mut self, strength: f32) {
-
         self.rot += self.rotation_speed * strength;
     }
 
@@ -186,11 +185,11 @@ impl Bot {
     pub fn eat(&mut self, food: Food) {
         self.energy += food.get_energy();
 
-        self.view_radius *= 1.1;
+        //self.view_radius *= 1.1;
 
-        if self.view_radius > 16.0 * self.size {
+        /*if self.view_radius > 16.0 * self.size {
             self.view_radius = 16.0 * self.size;
-        }
+        }*/
 
     }
 

@@ -37,8 +37,8 @@ fn main() {
     let wnd = WindowBuilder::new(SCREEN_SIZE)
         .frame_pos((5.0, 25.0))
         .frame_size((SCREEN_SIZE.0 as f32 * 0.9, SCREEN_SIZE.1 as f32 * 0.9))
-        .tickrate(30)
-        .redraw_rate(30)
+        .tickrate(60)
+        .redraw_rate(60)
         .simulator(sim)
         .finish();
 

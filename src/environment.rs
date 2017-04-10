@@ -30,6 +30,7 @@ impl Environment {
                 e if e < 0.0 && e > -PI => target_output[0] = 1.0,
                 _ => {}
             }
+            target_output[2] = 0.0;
         }
         else if self.input[2] > 0.0 {
             match self.input[3] {
@@ -37,10 +38,12 @@ impl Environment {
                 e if e < 0.0 => target_output[1] = -e,
                 _ => {}
             }
+            target_output[2] = 0.5;
         }
         else{
             target_output[0] = 0.0; //output[0];
             target_output[1] = 0.0; //output[1];
+            target_output[2] = 1.0;
         }
 
         target_output

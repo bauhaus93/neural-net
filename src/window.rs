@@ -352,7 +352,7 @@ impl Window {
 
         core.draw_bitmap(&self.field_bmp, self.frame_pos.0, self.frame_pos.1, Flag::zero());
 
-        core.draw_text(self.allegro_data.get_std_font(), self.allegro_data.get_white(), 5.0, 5.0, FontAlign::Left, &format!("bot ticks: {}", self.simulator.get_ticks()));
+        core.draw_text(self.allegro_data.get_std_font(), self.allegro_data.get_white(), 5.0, 5.0, FontAlign::Left, &format!("ticks: {}", self.simulator.get_ticks()));
         core.draw_text(self.allegro_data.get_std_font(), self.allegro_data.get_white(), 5.0, 15.0, FontAlign::Left, &format!("tickrate: {}", self.tickrate));
 
 
